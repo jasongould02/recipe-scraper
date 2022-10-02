@@ -5,19 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"encoding/json"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 type RecipeIngredient struct {
-	name string;
-	amount string;
-	unit string;
+	Name	string	`json:"name"`
+	Amount	string	`json:"amount"`
+	Unit	string	`json:"unit"`
 }
 
-
-// only for recipes on noracooks.com for now
-func ingredientScraper(url string) []*RecipeIngredient {
+func scrapeIngredients(url string) []*RecipeIngredient {
 	var ingredientList []*RecipeIngredient
 	res, err := http.Get(url)
 	if err != nil {
@@ -35,21 +34,76 @@ func ingredientScraper(url string) []*RecipeIngredient {
 	}
 
 	doc.Find(".wprm-recipe-ingredient-group .wprm-recipe-ingredient").Each(
+		// Place ingredients into a JSON file to be sent to db
+		func(i int, selection *goquery.Selection) {
+		   amount := selection.Find(".wprm-recipe-ingredient-amount").Text()
+           unit := selection.Find(".wprm-recipe-ingredient-unit").Text()
+           name := selection.Find(".wprm-recipe-ingredient-name").Text()
+
+           if amount == "" { // probably an optional ingredient
+			   fmt.Println("Finish check for optional ingredient")
+           }
+           fmt.Printf("Ingredient: %s\t Amount: %s\t Unit: %s\n", name, amount, unit)
+           ingredientList = append(ingredientList, &RecipeIngredient{Name: name, Amount: amount, Unit: unit})
+	});
+	return ingredientList
+}
+
+func encodeIngredientList(list []*RecipeIngredient) {
+
+	b, err := json.Marshal(list)
+
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+	//fmt.Printf("Type:%T \t V:%v\n\n\n", string(b), string(b))
+	fmt.Println("{")
+	fmt.Println(string(b))
+	fmt.Println("}")
+}
+
+func encodeInstructionList(list []*RecipeInstruction) {
+	b, err := json.Marshal(list)
+
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+
+	fmt.Println("{")
+	fmt.Println(string(b))
+	fmt.Println("}")
+}
+
+
+type RecipeInstruction struct {
+	Instruction string	`json:"instruction"`
+	Number		int		`json:"number"`
+}
+
+func scrapeInstructions(url string) []*RecipeInstruction {
+	var instructionList []*RecipeInstruction
+	res, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	doc.Find(".wprm-recipe-instruction-group .wprm-recipe-instructions .wprm-recipe-instruction").Each(
 	// Place ingredients into a JSON file to be sent to db
 		func(i int, selection *goquery.Selection) {
-			amount := selection.Find(".wprm-recipe-ingredient-amount").Text()
-			unit := selection.Find(".wprm-recipe-ingredient-unit").Text()
-			name := selection.Find(".wprm-recipe-ingredient-name").Text()
-
-			if amount == "" { // probably an optional ingredient
-				fmt.Println("Finish check for optional ingredient")
-			}
-
-			fmt.Printf("Ingredient: %s\t Amount: %s\t Unit: %s\n", name, amount, unit)
-			ingredientList = append(ingredientList, &RecipeIngredient{name: name, amount: amount, unit: unit})
-		});
-
-	return ingredientList
+			instruction := selection.Find(".wprm-recipe-instruction-text").Text()
+			instructionList = append(instructionList, &RecipeInstruction{Instruction: instruction, Number: i})
+	});
+	return instructionList
 }
 
 /*doc.Find("script").Each(func(i int, s *goquery.Selection) {
@@ -64,9 +118,20 @@ func main() {
 	if args == nil || args[0] == "" {
 		return
 	}
-	list := ingredientScraper(args[0])
-	for _, e := range list {
+	ingredientList := scrapeIngredients(args[0])
+	for _, e := range ingredientList {
 		fmt.Printf("%+v\n", e)
 	}
+	fmt.Println("--------")
+	encodeIngredientList(ingredientList)
+
+	fmt.Println("--------")
+	instructionList := scrapeInstructions(args[0])
+	for _, e := range instructionList {
+		fmt.Printf("%+v\n", e)
+	}
+	encodeInstructionList(instructionList)
+	
+
 }
 
