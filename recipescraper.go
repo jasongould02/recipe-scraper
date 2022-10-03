@@ -34,12 +34,10 @@ func scrapeIngredients(url string) []*RecipeIngredient {
 	}
 
 	doc.Find(".wprm-recipe-ingredient-group .wprm-recipe-ingredient").Each(
-		// Place ingredients into a JSON file to be sent to db
 		func(i int, selection *goquery.Selection) {
 		   amount := selection.Find(".wprm-recipe-ingredient-amount").Text()
            unit := selection.Find(".wprm-recipe-ingredient-unit").Text()
            name := selection.Find(".wprm-recipe-ingredient-name").Text()
-
            if amount == "" { // probably an optional ingredient
 			   fmt.Println("Finish check for optional ingredient")
            }
@@ -98,12 +96,45 @@ func scrapeInstructions(url string) []*RecipeInstruction {
 	}
 
 	doc.Find(".wprm-recipe-instruction-group .wprm-recipe-instructions .wprm-recipe-instruction").Each(
-	// Place ingredients into a JSON file to be sent to db
 		func(i int, selection *goquery.Selection) {
 			instruction := selection.Find(".wprm-recipe-instruction-text").Text()
 			instructionList = append(instructionList, &RecipeInstruction{Instruction: instruction, Number: i})
 	});
 	return instructionList
+}
+
+type RecipeNutrition struct {
+	Name	string	`json:"name"`
+	Amount	string	`json:"amount"`
+	Unit	string	`json:"unit"`
+}
+
+func scrapeNutrition(url string) []*RecipeNutrition {
+	var nutritionList []*RecipeNutrition
+	res, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	doc.Find(".wprm-nutrition-label-text-nutrition-container").Each(func(i int, selection *goquery.Selection) {
+		amount := selection.Find(".wprm-nutrition-label-text-nutrition-value").Text()
+		unit   := selection.Find(".wprm-nutrition-label-text-nutrition-unit").Text()
+		name   := selection.Find(".wprm-nutrition-label-text-nutrition-label").Text()
+
+		fmt.Printf("Nutrition Label: %s\t Amount: %s\t Unit: %s\n", name, amount, unit)
+		nutritionList = append(nutritionList, &RecipeNutrition{Name: name, Amount: amount, Unit: unit})
+	});
+	return nutritionList
 }
 
 /*doc.Find("script").Each(func(i int, s *goquery.Selection) {
@@ -131,7 +162,11 @@ func main() {
 		fmt.Printf("%+v\n", e)
 	}
 	encodeInstructionList(instructionList)
-	
 
+	nutritionList := scrapeNutrition(args[0])
+	for _, e := range nutritionList {
+		fmt.Printf("%+v\n", e)
+	}
+	//encodeNutritionList(nutritionList)
 }
 
