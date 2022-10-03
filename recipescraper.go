@@ -109,6 +109,18 @@ type RecipeNutrition struct {
 	Unit	string	`json:"unit"`
 }
 
+func encodeNutritionList(list []*RecipeNutrition) {
+	b, err := json.Marshal(list)
+
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+
+	fmt.Println("{")
+	fmt.Println(string(b))
+	fmt.Println("}")
+}
+
 func scrapeNutrition(url string) []*RecipeNutrition {
 	var nutritionList []*RecipeNutrition
 	res, err := http.Get(url)
@@ -137,13 +149,6 @@ func scrapeNutrition(url string) []*RecipeNutrition {
 	return nutritionList
 }
 
-/*doc.Find("script").Each(func(i int, s *goquery.Selection) {
-		recipe_198 := s.Find("var wprmpuc_recipe_198").Text()
-		fmt.Println("script:", recipe_198)
-	})
-}*/
-
-
 func main() {
 	args := os.Args[1:]
 	if args == nil || args[0] == "" {
@@ -167,6 +172,6 @@ func main() {
 	for _, e := range nutritionList {
 		fmt.Printf("%+v\n", e)
 	}
-	//encodeNutritionList(nutritionList)
+	encodeNutritionList(nutritionList)
 }
 
