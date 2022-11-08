@@ -17,6 +17,31 @@ type RecipeIngredient struct {
 	Unit	string	`json:"unit"`
 }
 
+type RecipeInstruction struct {
+	Instruction string	`json:"instruction"`
+	Number		int		`json:"number"`
+}
+
+type RecipeNutrition struct {
+	Name	string	`json:"name"`
+	Amount	string	`json:"amount"`
+	Unit	string	`json:"unit"`
+}
+
+type RecipeMeta struct {
+	Servings		string	`json:"servings"`
+	ServingsUnit	string	`json:"servingsUnit"`
+	Cuisine			string	`json:"cuisine"`
+	Course			string	`json:"course"`
+	Author			string	`json:"author"`
+	PrepTime		string	`json:"prepTime"`
+	PrepTimeUnit	string	`json:"prepTimeUnit"`
+	CookTime		string	`json:"cookTime"`
+	CookTimeUnit	string	`json:"cookTimeUnit"`
+	TotalTime		string	`json:"totalTime"`
+	Summary			string	`json:"summary"`
+}
+
 func scrapeIngredients(url string) []*RecipeIngredient {
 	var ingredientList []*RecipeIngredient
 	res, err := http.Get(url)
@@ -48,11 +73,6 @@ func scrapeIngredients(url string) []*RecipeIngredient {
 	return ingredientList
 }
 
-type RecipeInstruction struct {
-	Instruction string	`json:"instruction"`
-	Number		int		`json:"number"`
-}
-
 func scrapeInstructions(url string) []*RecipeInstruction {
 	var instructionList []*RecipeInstruction
 	res, err := http.Get(url)
@@ -76,12 +96,6 @@ func scrapeInstructions(url string) []*RecipeInstruction {
 			instructionList = append(instructionList, &RecipeInstruction{Instruction: instruction, Number: i})
 	});
 	return instructionList
-}
-
-type RecipeNutrition struct {
-	Name	string	`json:"name"`
-	Amount	string	`json:"amount"`
-	Unit	string	`json:"unit"`
 }
 
 func scrapeNutrition(url string) []*RecipeNutrition {
@@ -112,22 +126,7 @@ func scrapeNutrition(url string) []*RecipeNutrition {
 	return nutritionList
 }
 
-type RecipeMeta struct {
-	Servings		string	`json:"servings"`
-	ServingsUnit	string	`json:"servingsUnit"`
-	Cuisine			string	`json:"cuisine"`
-	Course			string	`json:"course"`
-	Author			string	`json:"author"`
-	PrepTime		string	`json:"prepTime"`
-	PrepTimeUnit	string	`json:"prepTimeUnit"`
-	CookTime		string	`json:"cookTime"`
-	CookTimeUnit	string	`json:"cookTimeUnit"`
-	TotalTime		string	`json:"totalTime"`
-	Summary			string	`json:"summary"`
-}
-
 func scrapeMeta(url string) RecipeMeta {
-
 	res, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
