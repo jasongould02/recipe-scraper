@@ -48,32 +48,6 @@ func scrapeIngredients(url string) []*RecipeIngredient {
 	return ingredientList
 }
 
-func encodeIngredientList(list []*RecipeIngredient) {
-
-	b, err := json.Marshal(list)
-
-	if err != nil {
-		log.Printf("Error: %s\n", err)
-	}
-	//fmt.Printf("Type:%T \t V:%v\n\n\n", string(b), string(b))
-	fmt.Println("{")
-	fmt.Println(string(b))
-	fmt.Println("}")
-}
-
-func encodeInstructionList(list []*RecipeInstruction) {
-	b, err := json.Marshal(list)
-
-	if err != nil {
-		log.Printf("Error: %s\n", err)
-	}
-	// Remove later
-	fmt.Println("{")
-	fmt.Println(string(b))
-	fmt.Println("}")
-}
-
-
 type RecipeInstruction struct {
 	Instruction string	`json:"instruction"`
 	Number		int		`json:"number"`
@@ -108,18 +82,6 @@ type RecipeNutrition struct {
 	Name	string	`json:"name"`
 	Amount	string	`json:"amount"`
 	Unit	string	`json:"unit"`
-}
-
-func encodeNutritionList(list []*RecipeNutrition) {
-	b, err := json.Marshal(list)
-
-	if err != nil {
-		log.Printf("Error: %s\n", err)
-	}
-	// Remove later
-	fmt.Println("{")
-	fmt.Println(string(b))
-	fmt.Println("}")
 }
 
 func scrapeNutrition(url string) []*RecipeNutrition {
@@ -162,17 +124,6 @@ type RecipeMeta struct {
 	CookTimeUnit	string	`json:"cookTimeUnit"`
 	TotalTime		string	`json:"totalTime"`
 	Summary			string	`json:"summary"`
-}
-
-func encodeMeta(meta RecipeMeta) {
-	b, err := json.Marshal(meta)
-	if err != nil {
-		log.Printf("Error: %s\n", err)
-	}
-	// Remove later
-	fmt.Println("{")
-	fmt.Println(string(b))
-	fmt.Println("}")
 }
 
 func scrapeMeta(url string) RecipeMeta {
@@ -229,32 +180,70 @@ func scrapeMeta(url string) RecipeMeta {
 	return recipeMeta
 }
 
+type Recipe struct {
+	Metadata RecipeMeta						`json:"Metadata"`
+	NutritionList []*RecipeNutrition		`json:"Nutrition"`
+	InstructionList []*RecipeInstruction	`json:"Instruction"`
+	IngredientList []*RecipeIngredient		`json:"Ingredient"`
+}
+
+func (r *Recipe) EncodeRecipe() []byte {
+	b, err := json.Marshal(r)
+	if err != nil {
+		log.Printf("Error: %s\t", err)
+	}
+	fmt.Println("\n\n\n\n\n\n")
+	fmt.Println(string(b))
+	fmt.Println("\n\n\n\n\n\n")
+	return b
+}
+
+func (r *Recipe) ScrapeRecipe(url string) { // Puts all recipe data into
+	r.IngredientList = scrapeIngredients(url)
+	r.InstructionList = scrapeInstructions(url)
+	r.NutritionList = scrapeNutrition(url)
+	r.Metadata = scrapeMeta(url)
+}
+
+func (r Recipe) encodeMeta(meta RecipeMeta) []byte {
+	b, err := json.Marshal(meta)
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+	return b
+}
+
+func (r Recipe) encodeNutritionList(list []*RecipeNutrition) []byte {
+	b, err := json.Marshal(list)
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+	return b
+}
+
+func (r Recipe) encodeInstructionList(list []*RecipeInstruction) []byte {
+	b, err := json.Marshal(list)
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+	return b
+}
+
+func (r Recipe) encodeIngredientList(list []*RecipeIngredient) []byte {
+	b, err := json.Marshal(list)
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+	}
+	return b
+}
+
 func main() {
 	args := os.Args[1:]
 	if args == nil || args[0] == "" {
 		return
 	}
-	ingredientList := scrapeIngredients(args[0])
-	for _, e := range ingredientList {
-		fmt.Printf("%+v\n", e)
-	}
-	fmt.Println("--------")
-	encodeIngredientList(ingredientList)
+	var data Recipe
 
-	fmt.Println("--------")
-	instructionList := scrapeInstructions(args[0])
-	for _, e := range instructionList {
-		fmt.Printf("%+v\n", e)
-	}
-	encodeInstructionList(instructionList)
-
-	nutritionList := scrapeNutrition(args[0])
-	for _, e := range nutritionList {
-		fmt.Printf("%+v\n", e)
-	}
-	encodeNutritionList(nutritionList)
-
-	out := scrapeMeta(args[0])
-	encodeMeta(out)
+	data.ScrapeRecipe(args[0])
+	data.EncodeRecipe()
 }
-
