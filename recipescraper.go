@@ -1,14 +1,15 @@
 package main
 
 import (
-	"os"
 	"fmt"
 	"strings"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"encoding/json"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gorilla/mux"
 )
 
 type RecipeIngredient struct {
@@ -43,12 +44,11 @@ type RecipeMeta struct {
 }
 
 func scrapeIngredients(url string) []*RecipeIngredient {
-	var ingredientList []*RecipeIngredient
 	res, err := http.Get(url)
+	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -59,27 +59,27 @@ func scrapeIngredients(url string) []*RecipeIngredient {
 		log.Fatal(err)
 	}
 
+	var ingredientList []*RecipeIngredient
 	doc.Find(".wprm-recipe-ingredient-group .wprm-recipe-ingredient").Each(
 		func(i int, selection *goquery.Selection) {
 		   amount := selection.Find(".wprm-recipe-ingredient-amount").Text()
            unit := selection.Find(".wprm-recipe-ingredient-unit").Text()
            name := selection.Find(".wprm-recipe-ingredient-name").Text()
            if amount == "" { // probably an optional ingredient
-			   fmt.Println("Finish check for optional ingredient")
+			   log.Println("Ingredient found but has no amount, finish check for optional ingredients")
            }
-           fmt.Printf("Ingredient: %s\t Amount: %s\t Unit: %s\n", name, amount, unit)
+		   log.Printf("Ingredient:%s\tAmount:%s\tUnit:%s\n", name, amount, unit)
            ingredientList = append(ingredientList, &RecipeIngredient{Name: name, Amount: amount, Unit: unit})
 	});
 	return ingredientList
 }
 
 func scrapeInstructions(url string) []*RecipeInstruction {
-	var instructionList []*RecipeInstruction
 	res, err := http.Get(url)
+	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -90,6 +90,7 @@ func scrapeInstructions(url string) []*RecipeInstruction {
 		log.Fatal(err)
 	}
 
+	var instructionList []*RecipeInstruction
 	doc.Find(".wprm-recipe-instruction-group .wprm-recipe-instructions .wprm-recipe-instruction").Each(
 		func(i int, selection *goquery.Selection) {
 			instruction := selection.Find(".wprm-recipe-instruction-text").Text()
@@ -99,12 +100,11 @@ func scrapeInstructions(url string) []*RecipeInstruction {
 }
 
 func scrapeNutrition(url string) []*RecipeNutrition {
-	var nutritionList []*RecipeNutrition
 	res, err := http.Get(url)
+	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -115,12 +115,13 @@ func scrapeNutrition(url string) []*RecipeNutrition {
 		log.Fatal(err)
 	}
 
+	var nutritionList []*RecipeNutrition
 	doc.Find(".wprm-nutrition-label-text-nutrition-container").Each(func(i int, selection *goquery.Selection) {
 		amount := selection.Find(".wprm-nutrition-label-text-nutrition-value").Text()
 		unit   := selection.Find(".wprm-nutrition-label-text-nutrition-unit").Text()
 		name   := selection.Find(".wprm-nutrition-label-text-nutrition-label").Text()
 
-		fmt.Printf("Nutrition Label: %s\t Amount: %s\t Unit: %s\n", name, amount, unit)
+		log.Printf("Nutrition Label: %s\tAmount:%s\tUnit:%s\n", name, amount, unit)
 		nutritionList = append(nutritionList, &RecipeNutrition{Name: name, Amount: amount, Unit: unit})
 	});
 	return nutritionList
@@ -128,10 +129,10 @@ func scrapeNutrition(url string) []*RecipeNutrition {
 
 func scrapeMeta(url string) RecipeMeta {
 	res, err := http.Get(url)
+	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -144,16 +145,10 @@ func scrapeMeta(url string) RecipeMeta {
 
 	servings := doc.Find(".wprm-recipe-servings").Text()
 	servingsUnit := doc.Find(".wprm-recipe-servings-unit").Text()
-	fmt.Println("servings: ", servings, "\tservings unit: ", servingsUnit)
-
 	cuisine := doc.Find(".wprm-recipe-cuisine").Text()
-	fmt.Println("cuisine: ", cuisine)
-
 	course := doc.Find(".wprm-recipe-course").Text()
-	fmt.Println("course: ", course)
-
 	author := doc.Find(".wprm-recipe-author").Text()
-	fmt.Println("author: ", author)
+	log.Printf("Servings:%s %s\tCuisine:%s\tCourse:%s\tAuthor:%s\n", servings, servingsUnit, cuisine, course, author)
 
 	prepTime := doc.Find(".wprm-recipe-prep_time").Text()
 	prepTimeUnit := doc.Find(".wprm-recipe-prep_time-unit").Text()
@@ -161,16 +156,15 @@ func scrapeMeta(url string) RecipeMeta {
 	cookTime := doc.Find(".wprm-recipe-cook_time").Text()
 	cookTimeUnit := doc.Find(".wprm-recipe-cook_time-unit").Text()
 
-	fmt.Printf("PrepTime:%s %s\tCookTime:%s %s\n", prepTime, prepTimeUnit, cookTime, cookTimeUnit)
-
 	totalTime := ""
 	doc.Find(".wprm-recipe-total_time, .wprm-recipe-total_time-unit").Each(func(i int, selection *goquery.Selection) {
 		totalTime += " " + selection.Text()
 	})
 	totalTime = strings.TrimSpace(totalTime)
+	log.Printf("Prep Time:%s %s\tCook Time:%s %s\tTotal Time:%s\n", prepTime, prepTimeUnit, cookTime, cookTimeUnit, totalTime)
 
 	summary := doc.Find(".wprm-recipe-summary").Text()
-	fmt.Println("summary:", summary)
+	log.Printf("Summary:%s\n", summary)
 
 	recipeMeta := RecipeMeta{Servings: servings, ServingsUnit: servingsUnit, Cuisine: cuisine, Course: course,
 							 Author: author, PrepTime: prepTime, PrepTimeUnit: prepTimeUnit,
@@ -191,13 +185,11 @@ func (r *Recipe) EncodeRecipe() []byte {
 	if err != nil {
 		log.Printf("Error: %s\t", err)
 	}
-	fmt.Println("\n\n\n\n\n\n")
-	fmt.Println(string(b))
-	fmt.Println("\n\n\n\n\n\n")
 	return b
 }
 
 func (r *Recipe) ScrapeRecipe(url string) { // Puts all recipe data into
+	log.Printf("Initiating scraping on URL:%s\n", url)
 	r.IngredientList = scrapeIngredients(url)
 	r.InstructionList = scrapeInstructions(url)
 	r.NutritionList = scrapeNutrition(url)
@@ -236,13 +228,63 @@ func (r Recipe) encodeIngredientList(list []*RecipeIngredient) []byte {
 	return b
 }
 
-func main() {
-	args := os.Args[1:]
-	if args == nil || args[0] == "" {
+type GetRecipeRequest struct {
+	Url string	`json:"URL"`
+}
+
+func RecipeHandler(w http.ResponseWriter, r *http.Request) {
+	var recipeRequest GetRecipeRequest
+	var data Recipe
+	//var decodedString string
+
+	fmt.Println("----------------------------")
+	temp, _ := httputil.DumpRequest(r, true)
+	fmt.Println(string(temp))
+	fmt.Println("----------------------------")
+
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	//err := decoder.Decode(&decodedString)
+	err := decoder.Decode(&recipeRequest)
+	fmt.Println("recipeRequest is now:", recipeRequest.Url)
+	if err != nil {
+		log.Printf("Error decoding JSON: %s\n", err)
+	}
+	/*fmt.Println("Remove this print statement")
+	err = json.Unmarshal([]byte(decodedString), &recipeRequest)
+	if err != nil {
+		log.Printf("Error unmarshalling JSON: %s\n", err)
+	}*/
+
+	log.Printf("Received recipe URL is: %s\n", recipeRequest.Url)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var data Recipe
+	data.ScrapeRecipe(recipeRequest.Url)
 
-	data.ScrapeRecipe(args[0])
-	data.EncodeRecipe()
+	w.WriteHeader(http.StatusOK)
+	w.Write(data.EncodeRecipe())
+}
+
+func main() {
+	//args := os.Args[1:]
+	//fmt.Println(args)
+	//args := os.Args[1:]
+	//if args == nil || args[0] == "" {
+		//return
+	//}
+
+	fmt.Println("Starting Recipe-Scraper Server.")
+	mux := mux.NewRouter()
+	mux.HandleFunc("/new", RecipeHandler) // Receive new recipe URLs on this route
+
+	err := http.ListenAndServe("localhost:4000", mux)
+	//log.Fatal(err)
+	if err != nil {
+		log.Printf("Error: %s\n", err);
+	}
+
 }
