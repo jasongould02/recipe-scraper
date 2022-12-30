@@ -41,14 +41,15 @@ type RecipeMeta struct {
 	CookTimeUnit	string	`json:"cookTimeUnit"`
 	TotalTime		string	`json:"totalTime"`
 	Summary			string	`json:"summary"`
+	Title			string  `json:"title"`
 }
 
 func scrapeIngredients(url string) []*RecipeIngredient {
 	res, err := http.Get(url)
-	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -76,10 +77,10 @@ func scrapeIngredients(url string) []*RecipeIngredient {
 
 func scrapeInstructions(url string) []*RecipeInstruction {
 	res, err := http.Get(url)
-	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -101,10 +102,10 @@ func scrapeInstructions(url string) []*RecipeInstruction {
 
 func scrapeNutrition(url string) []*RecipeNutrition {
 	res, err := http.Get(url)
-	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -129,10 +130,10 @@ func scrapeNutrition(url string) []*RecipeNutrition {
 
 func scrapeMeta(url string) RecipeMeta {
 	res, err := http.Get(url)
-	defer res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		log.Fatalf("Error Code: %d \t Status:%s\n", res.StatusCode, res.Status)
@@ -166,9 +167,12 @@ func scrapeMeta(url string) RecipeMeta {
 	summary := doc.Find(".wprm-recipe-summary").Text()
 	log.Printf("Summary:%s\n", summary)
 
+	title := doc.Find(".breadcrumb_last").Text()
+	log.Printf("Title:%s\n", title)
+
 	recipeMeta := RecipeMeta{Servings: servings, ServingsUnit: servingsUnit, Cuisine: cuisine, Course: course,
 							 Author: author, PrepTime: prepTime, PrepTimeUnit: prepTimeUnit,
-							 CookTime: cookTime, CookTimeUnit: cookTimeUnit, TotalTime: totalTime, Summary: summary}
+							 CookTime: cookTime, CookTimeUnit: cookTimeUnit, TotalTime: totalTime, Summary: summary, Title: title}
 
 	return recipeMeta
 }
@@ -278,6 +282,7 @@ func main() {
 	//}
 
 	fmt.Println("Starting Recipe-Scraper Server.")
+	fmt.Println("Waiting for connection...")
 	mux := mux.NewRouter()
 	mux.HandleFunc("/new", RecipeHandler) // Receive new recipe URLs on this route
 
@@ -286,5 +291,4 @@ func main() {
 	if err != nil {
 		log.Printf("Error: %s\n", err);
 	}
-
 }
